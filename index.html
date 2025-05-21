@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en" class="dark-mode">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/src/assets/imgs/odoo.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Professional Odoo instance management tool for Docker environments" />
+  <meta name="author" content="WebGraphix" />
+  <meta name="keywords" content="odoo, docker, container, management, erp, instance, development" />
+  <meta name="application-name" content="Odoo Manager" />
+  <meta name="language" content="en, es" />
+  <title>Odoo Manager</title>
+  <style>
+    /* Critical: Hide loading resources text immediately */
+    html::before,
+    body::before,
+    #root::before,
+    div::before,
+    :not(.app-loader)::before {
+      display: none !important;
+      content: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+    }
+  
+    /* Preload dark theme to prevent white flash */
+    :root {
+      color-scheme: dark;
+    }
+    
+    html, body {
+      background-color: #121212;
+      background-image: linear-gradient(120deg, #111111, #000000);
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      transition: background-color 0.3s ease, background-image 0.3s ease;
+    }
+    
+    /* This will ensure any content rendered also uses dark theme colors */
+    html.dark-mode, body.dark-mode, #root {
+      background-color: #121212;
+      background-image: linear-gradient(120deg, #111111, #000000);
+      color: #ffffff;
+    }
+    
+    /* Light mode styles */
+    html.light-mode, body.light-mode, #root.light-mode {
+      background-color: #f5f5f5;
+      background-image: linear-gradient(120deg, #f8f8f8, #f0f0f0);
+      color: #333333;
+    }
+    
+    /* Hide all vite-specific loading elements */
+    [data-vite-dev-id],
+    div[data-vite-dev-id],
+    div[data-reactroot] ~ div {
+      display: none !important;
+      visibility: hidden !important;
+    }
+    
+    /* Add smooth transitions when theme changes */
+    html, body, #root {
+      transition: background-color 0.3s ease, background-image 0.3s ease, color 0.3s ease;
+    }
+    
+    /* Loading spinner */
+    .app-loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    
+    .dark-mode .app-loader {
+      background-color: #121212;
+      background-image: linear-gradient(120deg, #111111, #000000);
+    }
+    
+    .light-mode .app-loader {
+      background-color: #f5f5f5;
+      background-image: linear-gradient(120deg, #f8f8f8, #f0f0f0);
+    }
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 3px solid rgba(0, 0, 0, 0.1);
+      border-top-color: #1976d2; /* MUI primary blue */
+      animation: spin 1s infinite linear;
+    }
+    
+    .dark-mode .spinner {
+      border-color: rgba(255, 255, 255, 0.1);
+      border-top-color: #90caf9; /* Lighter blue for dark mode */
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Additional blanket hide for any loading text */
+    #root:empty:before, 
+    #root:before,
+    body:before {
+      content: none !important;
+      display: none !important;
+      visibility: hidden !important;
+    }
+    
+    /* Hide all additional dev notices and placeholders */
+    div[id^="dev-"], 
+    div[class^="dev-"],
+    div[data-testid^="dev-"],
+    #root:empty,
+    #root:before,
+    #root:after {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+    }
+  </style>
+</head>
+<body class="dark-mode">
+<!-- Loading spinner that appears immediately -->
+<div class="app-loader">
+  <div class="spinner"></div>
+</div>
+
+<!-- Empty div to take priority over any default loading messages -->
+<div id="loading-prevention" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; background: transparent;"></div>
+
+<div id="root"></div>
+<script type="module" src="/src/main.tsx"></script>
+<script>
+  // Immediate execution to prevent loading message
+  (function() {
+    // Remove any dev messages or loading text that might appear
+    const removeElements = () => {
+      const messages = document.querySelectorAll('div:not(.app-loader):not(#root):not(.spinner)');
+      messages.forEach(el => {
+        if (el.id !== 'loading-prevention' && el.textContent && el.textContent.includes('Loading resources')) {
+          el.style.display = 'none';
+          el.remove();
+        }
+      });
+    };
+    
+    // Run immediately and in intervals to catch any dynamically added elements
+    removeElements();
+    const removalInterval = setInterval(removeElements, 10);
+    setTimeout(() => clearInterval(removalInterval), 3000);
+    
+    // Read stored theme from localStorage
+    const savedMode = localStorage.getItem('theme-mode');
+    // Only switch to light mode if explicitly set
+    if (savedMode === 'light') {
+      document.documentElement.classList.remove('dark-mode');
+      document.documentElement.classList.add('light-mode');
+      document.body.classList.remove('dark-mode');
+      document.body.classList.add('light-mode');
+      document.querySelector('.app-loader').classList.remove('dark-mode');
+      document.querySelector('.app-loader').classList.add('light-mode');
+    }
+    
+    // Remove loader once app is rendered - with safer DOM handling
+    const removeLoader = () => {
+      // Hide elements first before removing them
+      const hideElement = (selector) => {
+        const el = document.querySelector(selector);
+        if (el) {
+          el.style.display = 'none';
+          el.style.visibility = 'hidden';
+          el.style.opacity = '0';
+          el.style.pointerEvents = 'none';
+          el.style.transition = 'opacity 0.3s ease';
+          
+          // Mark for garbage collection
+          el.setAttribute('data-removed', 'true');
+          
+          // Use requestAnimationFrame for safer DOM removal
+          requestAnimationFrame(() => {
+            try {
+              if (el.parentNode) {
+                // Use replaceWith(empty text node) instead of remove() to avoid React issues
+                el.replaceWith(document.createTextNode(''));
+              }
+            } catch (e) {
+              console.log(`Could not properly remove ${selector}`, e);
+            }
+          });
+        }
+      };
+      
+      // Hide loader and prevention div
+      hideElement('.app-loader');
+      hideElement('#loading-prevention');
+    };
+    
+    // Check if the app is rendered
+    const checkRender = () => {
+      if (document.getElementById('root').children.length > 0) {
+        removeLoader();
+      } else {
+        setTimeout(checkRender, 50);
+      }
+    };
+    
+    // Start checking for app render
+    checkRender();
+    
+    // Fallback removal after 2 seconds regardless of render state
+    setTimeout(removeLoader, 2000);
+  })();
+</script>
+</body>
+</html>

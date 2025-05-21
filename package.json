@@ -1,0 +1,113 @@
+{
+  "name": "odoo-manager",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Professional Odoo instance management tool for Docker environments",
+  "author": {
+    "name": "WebGraphix",
+    "email": "info@webgraphix.online"
+  },
+  "license": "PROPRIETARY",
+  "homepage": "https://odoo.webgraphix.online",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && electron-builder",
+    "build:all": "tsc --noEmit && vite build && electron-builder -mwl",
+    "build:mac": "vite build && electron-builder --mac",
+    "build:win": "vite build && electron-builder --win",
+    "build:linux": "vite build && electron-builder --linux",
+    "build:linux-docker": "./scripts/build-linux-docker.sh",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/icons-material": "^7.0.2",
+    "@mui/material": "^7.0.2",
+    "electron-log": "^5.4.0",
+    "electron-updater": "^6.6.2",
+    "framer-motion": "^12.10.0",
+    "i18next": "^25.1.3",
+    "i18next-browser-languagedetector": "^8.1.0",
+    "marked": "^15.0.11",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-i18next": "^15.5.1",
+    "react-router-dom": "^7.5.3"
+  },
+  "devDependencies": {
+    "@types/marked": "^5.0.2",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@vitejs/plugin-react": "^4.4.1",
+    "electron": "^35.2.1",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.3",
+    "vite-plugin-electron": "^0.29.0",
+    "vite-plugin-electron-renderer": "^0.14.6"
+  },
+  "main": "dist-electron/main.js",
+  "build": {
+    "appId": "com.webgraphix.odoo-manager",
+    "productName": "Odoo Manager",
+    "copyright": "Copyright © 2025 ${author}",
+    "files": [
+      "dist",
+      "dist-electron",
+      "public"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "release"
+    },
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "darkModeSupport": true,
+      "icon": "build/icon.icns"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm",
+        "pacman"
+      ],
+      "category": "Development",
+      "icon": "build/icons"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "dmg": {
+      "artifactName": "${productName}-${version}.${ext}",
+      "sign": false
+    },
+    "appImage": {
+      "artifactName": "${productName}-${version}.${ext}"
+    },
+    "deb": {
+      "artifactName": "${name}_${version}_${arch}.${ext}"
+    },
+    "rpm": {
+      "artifactName": "${name}-${version}.${arch}.${ext}"
+    },
+    "publish": null
+  }
+}

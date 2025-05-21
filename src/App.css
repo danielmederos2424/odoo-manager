@@ -1,0 +1,39 @@
+#root {
+  width: 100%;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+/* Theme-specific variables */
+:root {
+  /* Light theme (default) */
+  --spinner-track-color: rgba(0, 0, 0, 0.1);
+  --spinner-color: #3498db;
+  color-scheme: light;
+}
+
+/* Dark theme */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --spinner-track-color: rgba(255, 255, 255, 0.1);
+    --spinner-color: #3498db;
+    color-scheme: dark;
+  }
+}
+
+/* Dark theme class for theme-switcher */
+.dark-mode {
+  --spinner-track-color: rgba(255, 255, 255, 0.1);
+  --spinner-color: #3498db;
+  color-scheme: dark;
+}
+
+/* Light theme class for theme-switcher */
+.light-mode {
+  --spinner-track-color: rgba(0, 0, 0, 0.1);
+  --spinner-color: #3498db;
+  color-scheme: light;
+}
+
+/* Add your custom styles here */
