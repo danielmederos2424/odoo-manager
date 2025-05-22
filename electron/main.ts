@@ -617,7 +617,41 @@ const windows: WindowsRegistry = {};
 // Check if setup is completed
 async function isSetupCompleted(): Promise<{completed: boolean}> {
   try {
-
+    // Windows-specific behavior - only check if workdir.json exists in AppData
+    if (process.platform === 'win32') {
+      const appDataPath = app.getPath('userData');
+      const workDirFilePath = path.join(appDataPath, 'workdir.json');
+      
+      // For Windows, we consider setup complete if the workdir.json file exists
+      // This simplifies the Windows setup process
+      if (fs.existsSync(workDirFilePath)) {
+        logInfo('Windows: workdir.json exists, setup completed');
+        
+        // Additional verification - check if settings.json also exists
+        try {
+          const workDirData = JSON.parse(fs.readFileSync(workDirFilePath, 'utf8'));
+          const workDir = workDirData.workDir;
+          
+          // Log the actual path stored in workdir.json
+          logInfo(`Windows: workdir.json points to: ${workDir}`);
+          
+          // Check if the workDir exists and contains settings.json
+          const settingsPath = path.join(workDir, 'settings.json');
+          const settingsExists = fs.existsSync(settingsPath);
+          logInfo(`Windows: Settings file exists at ${settingsPath}? ${settingsExists}`);
+          
+          return { completed: settingsExists };
+        } catch (err) {
+          logError('Windows: Error parsing workdir.json or checking settings', err);
+          return { completed: false };
+        }
+      } else {
+        logInfo('Windows: workdir.json does not exist, setup not completed');
+        return { completed: false };
+      }
+    }
+    
+    // Original behavior for other platforms
     const workDirFilePath = path.join(app.getPath('userData'), 'workdir.json');
 
     if (!fs.existsSync(workDirFilePath)) {
@@ -997,7 +1031,39 @@ function showMainWindow() {
 
     const mainExists = windows.main && !windows.main.isDestroyed();
     const splashExists = windows.splash && !windows.splash.isDestroyed();
+    
+    logInfo(`Window state: main exists=${mainExists}, splash exists=${splashExists}`);
 
+    // Special handling for Windows platform to debug issues
+    if (process.platform === 'win32') {
+      logInfo('Windows platform: executing showMainWindow');
+      
+      // Force-close the splash window if it exists
+      if (splashExists && windows.splash) {
+        try {
+          logInfo('Windows: Force-closing splash window');
+          windows.splash.destroy(); // Use destroy instead of close to ensure it closes
+        } catch (err) {
+          logError('Windows: Error force-closing splash window', err);
+        }
+      }
+      
+      // Show the main window immediately
+      if (mainExists && windows.main) {
+        logInfo('Windows: Showing existing main window');
+        loadAndShowWindow(windows.main);
+        return;
+      } else {
+        logInfo('Windows: Creating and showing new main window');
+        const newMain = createMainWindow();
+        setTimeout(() => {
+          loadAndShowWindow(newMain);
+        }, 100);
+        return;
+      }
+    }
+
+    // Original code for non-Windows platforms
     if (mainExists && windows.main) {
       windows.main.hide();
 
@@ -1266,6 +1332,184 @@ function createAppMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+/**
+ * Setup Windows-specific defaults to ensure app works properly on Windows 
+ * This function handles the Windows-specific configuration to address path issues
+ */
+async function setupWindowsDefaults(): Promise<boolean> {
+  try {
+    logInfo('Setting up Windows-specific default configuration');
+    const appDataPath = app.getPath('userData');
+    logInfo(`Using AppData path: ${appDataPath}`);
+
+    // Debug - show directory contents
+    try {
+      const appDataContents = fs.readdirSync(appDataPath);
+      logInfo(`AppData contents: ${JSON.stringify(appDataContents)}`);
+    } catch (err) {
+      logError('Error reading AppData directory', err);
+    }
+
+    // Create workdir.json in AppData pointing to itself
+    const workDirFilePath = path.join(appDataPath, 'workdir.json');
+    if (!fs.existsSync(workDirFilePath)) {
+      try {
+        fs.writeFileSync(workDirFilePath, JSON.stringify({ workDir: appDataPath }, null, 2));
+        logInfo(`Created workdir.json in AppData pointing to itself: ${appDataPath}`);
+      } catch (err) {
+        logError('Error creating workdir.json', err);
+        return false;
+      }
+    } else {
+      logInfo(`workdir.json already exists in AppData`);
+      try {
+        // Validate the existing workdir.json
+        const workDirData = JSON.parse(fs.readFileSync(workDirFilePath, 'utf8'));
+        logInfo(`Existing workdir.json contents: ${JSON.stringify(workDirData)}`);
+        
+        // Ensure workDir is set to appDataPath
+        if (workDirData.workDir !== appDataPath) {
+          logInfo(`Updating workdir.json to point to correct AppData path`);
+          workDirData.workDir = appDataPath;
+          fs.writeFileSync(workDirFilePath, JSON.stringify(workDirData, null, 2));
+        }
+      } catch (err) {
+        logError('Error reading/updating existing workdir.json', err);
+        // Try to recreate it
+        try {
+          fs.writeFileSync(workDirFilePath, JSON.stringify({ workDir: appDataPath }, null, 2));
+          logInfo(`Recreated workdir.json after error`);
+        } catch (writeErr) {
+          logError('Failed to recreate workdir.json', writeErr);
+          return false;
+        }
+      }
+    }
+
+    // Create default settings.json in the AppData directory
+    const settingsPath = path.join(appDataPath, 'settings.json');
+    if (!fs.existsSync(settingsPath)) {
+      try {
+        const defaultSettings = {
+          theme: 'dark',
+          language: 'en',
+          network: 'odoo-network',
+          showWelcomeScreen: true,
+          autoCheckUpdates: true,
+          updateCheckFrequency: 'daily',
+          showUpdateNotifications: true,
+          lastUpdateCheck: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        fs.writeFileSync(settingsPath, JSON.stringify(defaultSettings, null, 2));
+        logInfo(`Created default settings.json in AppData`);
+      } catch (err) {
+        logError('Error creating settings.json', err);
+        return false;
+      }
+    } else {
+      logInfo(`settings.json already exists in AppData at: ${settingsPath}`);
+      try {
+        const settingsData = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        logInfo(`Existing settings.json contents: ${JSON.stringify(settingsData)}`);
+      } catch (err) {
+        logError('Error reading existing settings.json', err);
+        // Try to recreate it
+        try {
+          const defaultSettings = {
+            theme: 'dark',
+            language: 'en',
+            network: 'odoo-network',
+            showWelcomeScreen: true,
+            autoCheckUpdates: true,
+            updateCheckFrequency: 'daily',
+            showUpdateNotifications: true,
+            lastUpdateCheck: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          fs.writeFileSync(settingsPath, JSON.stringify(defaultSettings, null, 2));
+          logInfo(`Recreated settings.json after error`);
+        } catch (writeErr) {
+          logError('Failed to recreate settings.json', writeErr);
+          return false;
+        }
+      }
+    }
+
+    // Ensure necessary directories exist (odoo, postgres, logs)
+    const odooDir = path.join(appDataPath, 'odoo');
+    const postgresDir = path.join(appDataPath, 'postgres');
+    const logsDir = path.join(appDataPath, 'logs');
+
+    try {
+      if (!fs.existsSync(odooDir)) {
+        fs.mkdirSync(odooDir, { recursive: true });
+        logInfo(`Created odoo directory in AppData: ${odooDir}`);
+      } else {
+        logInfo(`odoo directory already exists: ${odooDir}`);
+      }
+    } catch (err) {
+      logError('Error creating odoo directory', err);
+      return false;
+    }
+
+    try {
+      if (!fs.existsSync(postgresDir)) {
+        fs.mkdirSync(postgresDir, { recursive: true });
+        logInfo(`Created postgres directory in AppData: ${postgresDir}`);
+      } else {
+        logInfo(`postgres directory already exists: ${postgresDir}`);
+      }
+    } catch (err) {
+      logError('Error creating postgres directory', err);
+      return false;
+    }
+
+    try {
+      if (!fs.existsSync(logsDir)) {
+        fs.mkdirSync(logsDir, { recursive: true });
+        logInfo(`Created logs directory in AppData: ${logsDir}`);
+      } else {
+        logInfo(`logs directory already exists: ${logsDir}`);
+      }
+    } catch (err) {
+      logError('Error creating logs directory', err);
+      return false;
+    }
+
+    // Verify everything was created correctly
+    let setupSuccessful = true;
+    if (!fs.existsSync(workDirFilePath)) {
+      logError('workdir.json was not created successfully');
+      setupSuccessful = false;
+    }
+    if (!fs.existsSync(settingsPath)) {
+      logError('settings.json was not created successfully');
+      setupSuccessful = false;
+    }
+    if (!fs.existsSync(odooDir)) {
+      logError('odoo directory was not created successfully');
+      setupSuccessful = false;
+    }
+    if (!fs.existsSync(postgresDir)) {
+      logError('postgres directory was not created successfully');
+      setupSuccessful = false;
+    }
+    if (!fs.existsSync(logsDir)) {
+      logError('logs directory was not created successfully');
+      setupSuccessful = false;
+    }
+
+    logInfo(`Windows-specific default configuration completed successfully: ${setupSuccessful}`);
+    return setupSuccessful;
+  } catch (error) {
+    logError('Error setting up Windows-specific defaults', error);
+    return false;
+  }
+}
+
 app.whenReady().then(async () => {
   // Initialize log file
   initLogFile();
@@ -1392,38 +1636,119 @@ app.whenReady().then(async () => {
     }
   });
 
-  logInfo('Checking if setup is completed...');
-
-  const { completed } = await isSetupCompleted();
-
-  if (!completed) {
-    logInfo('Setup not completed, showing setup screen...');
-
-    const setupWindow = createSetupWindow();
-
-    const mainConfig = getWindowConfig('main');
-    setupWindow.setSize(mainConfig.width, mainConfig.height);
-    if (mainConfig.minWidth && mainConfig.minHeight) {
-      setupWindow.setMinimumSize(mainConfig.minWidth, mainConfig.minHeight);
+  // Windows-specific behavior
+  if (process.platform === 'win32') {
+    logInfo('Windows platform detected, checking for automatic setup...');
+    
+    // Set up Windows defaults
+    const windowsSetupResult = await setupWindowsDefaults();
+    logInfo(`Windows defaults setup result: ${windowsSetupResult ? 'success' : 'failed'}`);
+    
+    // Check if setup completed (this will use Windows-specific logic we added)
+    const { completed } = await isSetupCompleted();
+    logInfo(`Windows: Is setup completed? ${completed}`);
+    
+    if (completed) {
+      logInfo('Windows: Setup completed, showing splash screen...');
+      
+      createSplashWindow();
+      createMainWindow();
+      initializeApp();
+      
+      app.addListener('verification-complete' as any, () => {
+        logInfo('App event: verification complete signal received');
+        showMainWindow();
+      });
+      
+      ipcMain.on('verification-complete', (event) => {
+        logInfo('IPC event: verification complete signal received');
+        logInfo(`Verification complete received from window ID: ${event.sender.id}`);
+        
+        // Debug verification path on Windows
+        if (process.platform === 'win32') {
+          logInfo('Windows platform: Processing verification-complete signal');
+          
+          if (windows.splash && !windows.splash.isDestroyed()) {
+            logInfo('Splash window exists and will be closed');
+          } else {
+            logInfo('Splash window does not exist or is already destroyed');
+          }
+          
+          if (windows.main && !windows.main.isDestroyed()) {
+            logInfo('Main window exists and will be shown');
+          } else {
+            logInfo('Main window does not exist or is already destroyed');
+          }
+        }
+        
+        showMainWindow();
+      });
+    } else {
+      logInfo('Windows: Setup not completed, showing setup screen (this should be rare)...');
+      
+      const setupWindow = createSetupWindow();
+      
+      const mainConfig = getWindowConfig('main');
+      setupWindow.setSize(mainConfig.width, mainConfig.height);
+      if (mainConfig.minWidth && mainConfig.minHeight) {
+        setupWindow.setMinimumSize(mainConfig.minWidth, mainConfig.minHeight);
+      }
+      setupWindow.center();
     }
-    setupWindow.center();
-  }
-  else {
-    logInfo('Normal startup, showing splash screen...');
-
-    createSplashWindow();
-    createMainWindow();
-    initializeApp();
-
-    app.addListener('verification-complete' as any, () => {
-      logInfo('App event: verification complete signal received');
-      showMainWindow();
-    });
-
-    ipcMain.on('verification-complete', () => {
-      logInfo('IPC event: verification complete signal received');
-      showMainWindow();
-    });
+  } else {
+    // Original behavior for non-Windows platforms
+    logInfo('Checking if setup is completed...');
+    
+    const { completed } = await isSetupCompleted();
+    
+    if (!completed) {
+      logInfo('Setup not completed, showing setup screen...');
+      
+      const setupWindow = createSetupWindow();
+      
+      const mainConfig = getWindowConfig('main');
+      setupWindow.setSize(mainConfig.width, mainConfig.height);
+      if (mainConfig.minWidth && mainConfig.minHeight) {
+        setupWindow.setMinimumSize(mainConfig.minWidth, mainConfig.minHeight);
+      }
+      setupWindow.center();
+    }
+    else {
+      logInfo('Normal startup, showing splash screen...');
+      
+      createSplashWindow();
+      createMainWindow();
+      initializeApp();
+      
+      app.addListener('verification-complete' as any, () => {
+        logInfo('App event: verification complete signal received');
+        showMainWindow();
+      });
+      
+      ipcMain.on('verification-complete', (event) => {
+        logInfo('IPC event: verification complete signal received');
+        logInfo(`Verification complete received from window ID: ${event.sender.id}`);
+        
+        // Debug verification path on Windows
+        if (process.platform === 'win32') {
+          logInfo('Windows platform: Processing verification-complete signal');
+          
+          if (windows.splash && !windows.splash.isDestroyed()) {
+            logInfo('Splash window exists and will be closed');
+          } else {
+            logInfo('Splash window does not exist or is already destroyed');
+          }
+          
+          if (windows.main && !windows.main.isDestroyed()) {
+            logInfo('Main window exists and will be shown');
+          } else {
+            logInfo('Main window does not exist or is already destroyed');
+          }
+        }
+        
+        showMainWindow();
+      });
+    }
   }
 
   ipcMain.on('sync-theme', (_event, { mode, source }) => {
@@ -1895,7 +2220,21 @@ ipcMain.handle('get-app-version', () => {
 
 // Get app path
 ipcMain.handle('get-app-path', (_event, name) => {
-  return app.getPath(name as any || 'userData');
+  const appPath = app.getPath(name as any || 'userData');
+  logInfo(`Sending app path via handle: ${name || 'userData'} = ${appPath}`);
+  return appPath;
+});
+
+// Get app path (synchronous version for more reliable startup)
+ipcMain.on('get-app-path-sync', (event, name) => {
+  try {
+    const appPath = app.getPath(name as any || 'userData');
+    logInfo(`Sending app path via sync: ${name || 'userData'} = ${appPath}`);
+    event.returnValue = appPath;
+  } catch (error) {
+    logError('Error handling get-app-path-sync', error);
+    event.returnValue = '';
+  }
 });
 
 /**

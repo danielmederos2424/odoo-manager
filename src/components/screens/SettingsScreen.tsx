@@ -1560,7 +1560,7 @@ libsasl2-dev"
                                             fullWidth
                                             variant="outlined"
                                             startIcon={<HelpIcon />}
-                                            onClick={() => handleExternalLink('https://docs.webgraphix.online/odoo-manager')}
+                                            onClick={() => handleExternalLink('https://github.com/danielmederos2424/odoo-manager/blob/main/README.md')}
                                         >
                                             {t('documentation')}
                                         </Button>

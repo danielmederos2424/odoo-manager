@@ -442,7 +442,7 @@ export default {
   "prerequisitesDesc": "Asegúrate de que Docker y Docker Compose estén correctamente instalados en tu sistema. Docker Desktop es recomendado para usuarios de Windows y macOS.",
   "setupEnvironmentDesc": "Durante el primer inicio, serás guiado a través de un asistente de configuración. Establece tu idioma preferido, tema y directorio de trabajo donde se almacenarán las instancias de Odoo.",
   "helpDownloadImagesDesc": "Ve a Configuración → Imágenes y descarga las imágenes de Odoo y PostgreSQL que necesitas. Estas son requeridas antes de crear instancias.",
-  "createFirstInstanceDesc": "Haz clic en \"Nueva Instancia\" en la barra lateral, selecciona tu versión de Odoo, configura tus ajustes y lanza tu primer entorno de Odoo.",
+  "createFirstInstanceDesc": "Haz clic en botón \"Nueva Instancia\" en la parte superior derecha junto al botón de \"Refrescar\", selecciona tu versión de Odoo, configura tus ajustes y lanza tu primer entorno de Odoo.",
   "startStop": "Iniciar/Detener",
   "viewLogs": "Ver Registros",
   "accessInfo": "Acceder a la Información",

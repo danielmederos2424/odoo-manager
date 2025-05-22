@@ -28,6 +28,45 @@ class DockerComposeService {
                 logError(`Failed to create projects directory`, err instanceof Error ? err : new Error(String(err)));
             }
         }
+        
+        // For Windows, we want to initialize immediately to ensure paths are set correctly
+        if (process.platform === 'win32') {
+            setTimeout(() => {
+                this.initializeWindowsProjectsPath();
+            }, 0);
+        }
+    }
+    
+    /**
+     * Initialize projects path specifically for Windows platform
+     * This ensures we always use AppData directory on Windows
+     */
+    async initializeWindowsProjectsPath(): Promise<void> {
+        if (process.platform !== 'win32') return;
+        
+        try {
+            const appDataPath = getAppDataPath();
+            logInfo(`Windows: Setting projects path to AppData: ${appDataPath}`);
+            this.projectsPath = appDataPath;
+            
+            // Create odoo and postgres directories if they don't exist
+            const odooPath = path.join(this.projectsPath, 'odoo');
+            const postgresPath = path.join(this.projectsPath, 'postgres');
+            
+            if (!fs.existsSync(odooPath)) {
+                fs.mkdirSync(odooPath, { recursive: true });
+                logInfo(`Windows: Created odoo directory in AppData`);
+            }
+            
+            if (!fs.existsSync(postgresPath)) {
+                fs.mkdirSync(postgresPath, { recursive: true });
+                logInfo(`Windows: Created postgres directory in AppData`);
+            }
+            
+            logInfo(`Windows: Projects paths initialized: ${this.projectsPath}`);
+        } catch (error) {
+            logError(`Windows: Error initializing projects paths`, error instanceof Error ? error : new Error(String(error)));
+        }
     }
 
     /**
@@ -35,6 +74,13 @@ class DockerComposeService {
      */
     async initializeProjectsPath(): Promise<void> {
         try {
+            // Windows-specific behavior - always use AppData
+            if (process.platform === 'win32') {
+                await this.initializeWindowsProjectsPath();
+                return;
+            }
+            
+            // Original behavior for other platforms
             const workDirPath = await settingsService.getWorkDirPath();
             if (workDirPath) {
                 this.projectsPath = workDirPath;
@@ -112,6 +158,7 @@ class DockerComposeService {
 
     /**
      * Check if a port is available and find an alternative if needed
+     * Improved implementation for better cross-platform support, especially on Windows
      */
     private async checkPortAvailability(port: number): Promise<number> {
         try {
@@ -119,51 +166,67 @@ class DockerComposeService {
             const net = require('net');
             const tester = net.createServer();
 
-            await new Promise<void>((resolve, reject) => {
-                tester.once('error', (err: any) => {
-                    if (err.code === 'EADDRINUSE') {
-                        logInfo(`Port ${port} is in use`);
-                        reject(new Error(`Port ${port} is already in use`));
-                    } else {
-                        reject(err);
-                    }
+            // Check port function - more reliable across platforms
+            const checkPort = (port: number): Promise<boolean> => {
+                return new Promise((resolve) => {
+                    const server = net.createServer()
+                        .once('error', (err: any) => {
+                            if (err.code === 'EADDRINUSE' || err.code === 'EACCES') {
+                                logInfo(`Port ${port} is in use or access denied`);
+                                resolve(false);
+                            } else {
+                                // For any other error, we'll still try to use another port
+                                logInfo(`Port ${port} check error: ${err.code}`);
+                                resolve(false);
+                            }
+                        })
+                        .once('listening', () => {
+                            server.close();
+                            logInfo(`Port ${port} is available`);
+                            resolve(true);
+                        });
+
+                    // First try to listen on localhost (more reliable detection on Windows)
+                    server.listen(port, '127.0.0.1');
                 });
+            };
 
-                tester.once('listening', () => {
-                    logInfo(`Port ${port} is available`);
-                    tester.close(() => resolve());
-                });
-
-                tester.listen(port, '0.0.0.0');
-            });
-
-            return port; // Port is available, use it
+            // Check the requested port
+            const isAvailable = await checkPort(port);
+            if (isAvailable) {
+                return port; // Port is available, use it
+            } else {
+                throw new Error(`Port ${port} is already in use`);
+            }
         } catch (err) {
             logInfo(`Finding alternative port to ${port}`);
             let newPort = null;
 
             // Try next 20 ports
             for (let testPort = port + 1; testPort < port + 20; testPort++) {
-                try {
-                    const net = require('net');
-                    const tester = net.createServer();
-
-                    const isAvailable = await new Promise<boolean>((resolve) => {
-                        tester.once('error', () => resolve(false));
-                        tester.once('listening', () => {
-                            tester.close(() => resolve(true));
+                const net = require('net');
+                
+                // More reliable port checking function
+                const isAvailable = await new Promise<boolean>((resolve) => {
+                    const server = net.createServer()
+                        .once('error', () => {
+                            resolve(false);
+                        })
+                        .once('listening', () => {
+                            server.close();
+                            resolve(true);
                         });
-                        tester.listen(testPort, '0.0.0.0');
-                    });
+                    
+                    // On Windows, listen on localhost for more reliable detection
+                    server.listen(testPort, '127.0.0.1');
+                });
 
-                    if (isAvailable) {
-                        newPort = testPort;
-                        logInfo(`Found available port: ${newPort}`);
-                        break;
-                    }
-                } catch (e) {
-                    // Skip this port and try next
-                    logInfo(`Port ${testPort} test failed`);
+                if (isAvailable) {
+                    newPort = testPort;
+                    logInfo(`Found available port: ${newPort}`);
+                    break;
+                } else {
+                    logInfo(`Port ${testPort} is in use, trying next one`);
                 }
             }
 

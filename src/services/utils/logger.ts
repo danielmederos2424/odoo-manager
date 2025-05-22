@@ -1,9 +1,30 @@
 // src/services/utils/logger.ts
 import * as fs from 'fs';
 import * as path from 'path';
-import { getLogsPath } from '../system/pathService';
+import * as os from 'os';
 import settingsService from '../settings/settingsService';
 import { isElectron } from '../../utils/electron';
+
+// Helper function to avoid circular dependency with pathService
+function getLocalLogsPath(customWorkDirPath?: string): string {
+    // If a specific work directory is provided, use it
+    const appName = 'odoo-manager';
+    try {
+        const basePath = customWorkDirPath || path.join(os.homedir(), 'Library', 'Application Support', appName);
+        const logsPath = path.join(basePath, 'logs');
+        
+        // Create directory if it doesn't exist
+        if (!fs.existsSync(logsPath)) {
+            fs.mkdirSync(logsPath, { recursive: true });
+        }
+        
+        return logsPath;
+    } catch (error) {
+        console.error('Error getting logs path:', error);
+        // Fallback to temp directory
+        return path.join(os.tmpdir(), appName, 'logs');
+    }
+}
 
 // Global flags to prevent multiple logger initializations across all instances
 let GLOBAL_LOGGER_INITIALIZED = false;
@@ -292,8 +313,8 @@ class Logger {
             const workDirPath = await settingsService.getWorkDirPath();
             console.log(`Work directory: ${workDirPath || 'not set'}`);
 
-            // Get logs path using the path service
-            const logsPath = getLogsPath(workDirPath || undefined);
+            // Get logs path using our local function
+            const logsPath = getLocalLogsPath(workDirPath || undefined);
             console.log(`Logs directory: ${logsPath}`);
             
             // Get or create main log file
@@ -556,8 +577,8 @@ class Logger {
      */
     getLogFiles(): string[] {
         try {
-            // Use the path service to get logs path
-            const logsPath = getLogsPath();
+            // Use our local function to get logs path
+            const logsPath = getLocalLogsPath();
 
             if (!fs.existsSync(logsPath)) {
                 return [];

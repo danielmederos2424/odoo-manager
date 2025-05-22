@@ -103,6 +103,10 @@ const SplashScreen: React.FC = () => {
                         if (electron?.ipcRenderer) {
                             logInfo('Sending verification-complete signal');
                             electron.ipcRenderer.send('verification-complete');
+                            // Add log entry to debug Windows-specific issues
+                            if (process.platform === 'win32') {
+                                logInfo('Running on Windows, verification complete signal sent');
+                            }
                         } else {
                             logError('IPC Renderer not available for sending completion signal');
                             window.location.hash = '#/main';
