@@ -251,7 +251,7 @@ export default {
   "updateAvailable": "Update Available",
   "updateAvailableDesc": "A new version of Odoo Manager is available.",
   "currentVersion": "Current Version",
-  "newVersion": "New Version: v{{version}}",
+  "newVersion": "New Version",
   "releaseDate": "Released: {{date}}",
   "releaseNotes": "Release Notes",
   "downloadManually": "Download Manually",
