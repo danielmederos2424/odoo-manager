@@ -124,7 +124,7 @@ const NewInstanceScreen: React.FC = () => {
     ];
 
     const [formData, setFormData] = useState<OdooFormData>({
-        version: '18',
+        version: '19',
         edition: 'Community',
         instanceName: '',
         port: '8069',
@@ -827,7 +827,7 @@ const NewInstanceScreen: React.FC = () => {
                                                     onChange={handleVersionChange}
                                                     disabled={formData.customImage}
                                                 >
-                                                    {['14', '15', '16', '17', '18'].map(version => {
+                                                    {['14', '15', '16', '17', '18', '19'].map(version => {
                                                         const isInstalled = availableImages.some(img =>
                                                             img.name === `odoo:${version}` && img.installed
                                                         );
@@ -845,7 +845,7 @@ const NewInstanceScreen: React.FC = () => {
                                                             >
                                                                 <span>
                                                                     {version}
-                                                                    {version === '18' && t('latestVersion')}
+                                                                    {version === '19' && t('latestVersion')}
                                                                 </span>
                                                                 {!isInstalled && (
                                                                     <Typography

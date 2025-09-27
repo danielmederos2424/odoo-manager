@@ -90,6 +90,7 @@ class DockerImagesService {
                 { name: 'odoo:16', size: '1.4 GB' },
                 { name: 'odoo:17', size: '1.5 GB' },
                 { name: 'odoo:18', size: '1.6 GB' },
+                { name: 'odoo:19', size: '1.7 GB' },
                 { name: 'postgres:13', size: '0.4 GB' },
                 { name: 'postgres:14', size: '0.5 GB' },
                 { name: 'postgres:15', size: '0.5 GB' },
