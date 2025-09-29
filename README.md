@@ -18,7 +18,7 @@ Odoo Manager is a cross-platform desktop application built with Electron and Rea
 - **Comprehensive Instance Management**
     - Create, start, stop, and delete Odoo instances with a few clicks
     - Support for both Community and Enterprise editions
-    - Choose from different Odoo versions (14, 15, 16, 17, 18)
+    - Choose from different Odoo versions (14, 15, 16, 17, 18, 19)
     - Configure port mappings, database settings, and admin credentials
     - Database filtering options for multi-database deployments
 
@@ -157,7 +157,7 @@ When you first launch the application, you'll be guided through a one-time setup
 1. Launch Odoo Manager
 2. Click on "New Instance" in the sidebar
 3. Configure your Odoo instance:
-   - Select Odoo version (14-18)
+   - Select Odoo version (14-19)
    - Choose Community or Enterprise edition
    - Enter an instance name
    - Set an admin password
