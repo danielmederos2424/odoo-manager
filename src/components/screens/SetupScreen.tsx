@@ -107,6 +107,7 @@ const initialImages: DockerImage[] = [
     { name: 'odoo:16', installed: true, downloading: false, size: '1.4 GB' },
     { name: 'odoo:17', installed: false, downloading: false, size: '1.5 GB' },
     { name: 'odoo:18', installed: false, downloading: false, size: '1.6 GB' },
+    { name: 'odoo:19', installed: false, downloading: false, size: '1.7 GB' },
     { name: 'postgres:13', installed: false, downloading: false, size: '0.4 GB' },
     { name: 'postgres:14', installed: true, downloading: false, size: '0.5 GB' },
     { name: 'postgres:15', installed: false, downloading: false, size: '0.5 GB' },
